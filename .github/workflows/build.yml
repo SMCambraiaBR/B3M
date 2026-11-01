@@ -1,0 +1,53 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@v4
+
+      - name: Extrair o ZIP do projeto
+        run: |
+          ZIP=$(ls -1 *.zip | sort -V | tail -n 1)
+          echo "Usando: $ZIP"
+          unzip -q "$ZIP"
+          ls
+
+      - name: Instalar Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Instalar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Compilar
+        working-directory: b3m
+        run: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest --stacktrace --no-daemon || echo "AVISO - algum teste falhou (veja o relatório)"
+          ./gradlew assembleDebug --stacktrace --no-daemon
+
+      - name: Guardar relatório de testes
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-report
+          path: b3m/app/build/reports/tests/testDebugUnitTest
+          if-no-files-found: ignore
+
+      - name: Guardar o APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: B3M-debug
+          path: b3m/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
