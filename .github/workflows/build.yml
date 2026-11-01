@@ -26,13 +26,13 @@ jobs:
           java-version: "17"
           distribution: "temurin"
 
-      - name: Instalar Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Aceitar licenças do Android SDK
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
       - name: Compilar
         working-directory: b3m
         run: |
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
           chmod +x gradlew
           ./gradlew testDebugUnitTest --stacktrace --no-daemon || echo "AVISO - algum teste falhou (veja o relatório)"
           ./gradlew assembleDebug --stacktrace --no-daemon
