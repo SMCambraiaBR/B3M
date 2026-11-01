@@ -11,40 +11,58 @@ jobs:
     timeout-minutes: 40
 
     steps:
-      - name: Baixar o repositório
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Extrair o ZIP do projeto
         run: |
           ZIP=$(ls -1 *.zip | sort -V | tail -n 1)
-          echo "Usando: $ZIP"
+          echo "Usando o ZIP: $ZIP"
           unzip -q "$ZIP"
-          ls -la
+          # Se o ZIP vier com pasta b3m/ dentro, entra nela
+          if [ -d "b3m" ]; then
+            cd b3m
+            echo "Entrou na pasta b3m"
+            ls -la
+          fi
 
-      - name: Instalar Java 17
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: "17"
           distribution: "temurin"
+          cache: gradle
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
         with:
           packages: 'platform-tools'
 
-      - name: Aceitar licenças do Android SDK
-        run: yes | sdkmanager --licenses > /dev/null || true
+      - name: Aceitar licenças
+        run: yes | sdkmanager --licenses >/dev/null || true
 
-      - name: Compilar
-        working-directory: b3m
+      - name: Configurar e Compilar
         run: |
+          # Encontra a pasta do projeto (pode estar na raiz ou dentro de b3m)
+          if [ -d "b3m" ]; then
+            PROJECT_DIR="b3m"
+          else
+            PROJECT_DIR="."
+          fi
+
+          cd "$PROJECT_DIR"
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           chmod +x gradlew
+
+          echo "Compilando Debug APK..."
           ./gradlew assembleDebug --stacktrace --no-daemon
 
-      - name: Guardar o APK
+      - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: B3M-debug
-          path: b3m/app/build/outputs/apk/debug/*.apk
+          path: |
+            b3m/app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+          retention-days: 14
